@@ -9,7 +9,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
     /**
      *  The current version of Ethers.
      */
-    const version = "6.13.2";
+    const version = "6.13.4";
 
     /**
      *  Property helper functions.
@@ -18347,7 +18347,18 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                 }
                 this.emit("debug", { action: "sendCcipReadFetchRequest", request, index: i, urls });
                 let errorMessage = "unknown error";
-                const resp = await request.send();
+                // Fetch the resource...
+                let resp;
+                try {
+                    resp = await request.send();
+                }
+                catch (error) {
+                    // ...low-level fetch error (missing host, bad SSL, etc.),
+                    // so try next URL
+                    errorMessages.push(error.message);
+                    this.emit("debug", { action: "receiveCcipReadFetchError", request, result: { error } });
+                    continue;
+                }
                 try {
                     const result = resp.bodyJson;
                     if (result.data) {
@@ -20017,7 +20028,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                         // If the network changed: calling again will also fail
                         // If unsupported: likely destroyed
                         if (isError(error, "CANCELLED") || isError(error, "BAD_DATA") ||
-                            isError(error, "NETWORK_ERROR" )) {
+                            isError(error, "NETWORK_ERROR") || isError(error, "UNSUPPORTED_OPERATION")) {
                             if (error.info == null) {
                                 error.info = {};
                             }
